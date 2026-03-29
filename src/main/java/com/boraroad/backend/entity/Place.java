@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 
+import java.time.LocalDate;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -26,7 +28,22 @@ public class Place {
     private Point location; // 위도, 경도 좌표
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Category category; // MV, RESTAURANT, CAFE 등
 
     private String imageUrl; // 대표 이미지 URL
+
+    @Column(nullable = false)
+    private boolean isEvent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ThemeType themeType;
+
+    @Enumerated(EnumType.STRING)
+    private EventType eventType;
+
+    private LocalDate eventStartDate;
+
+    private LocalDate eventEndDate;
 }

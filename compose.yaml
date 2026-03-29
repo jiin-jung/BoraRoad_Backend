@@ -2,23 +2,30 @@ services:
   app:
     build: .
     ports:
-      - '8080:8080'
+      - '${SERVER_PORT:-8080}:8080'
+    env_file:
+      - .env
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/bts_pilgrimage?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD:-verysecret}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/bts_pilgrimage?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME:-root}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD:-verysecret}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
-      - SPRING_SQL_INIT_MODE=${SPRING_SQL_INIT_MODE:-always}
+      - SPRING_JPA_SHOW_SQL=${SPRING_JPA_SHOW_SQL:-false}
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=${SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL:-false}
+      - SPRING_SQL_INIT_MODE=never
+      - SERVER_PORT=8080
     depends_on:
       mysql:
         condition: service_healthy
 
   mysql:
-    image: 'mysql:latest'
+    image: 'mysql:8.4'
     volumes:
       - mysql-data:/var/lib/mysql
+    env_file:
+      - .env
     environment:
-      - 'MYSQL_DATABASE=bts_pilgrimage'
+      - 'MYSQL_DATABASE=${MYSQL_DATABASE:-bts_pilgrimage}'
       - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-verysecret}'
     ports:
       - '3307:3306'
@@ -29,3 +36,4 @@ services:
 
 volumes:
   mysql-data:
+    name: boraroad-mysql-data-8_4
