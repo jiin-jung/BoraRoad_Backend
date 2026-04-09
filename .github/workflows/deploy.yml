@@ -1,0 +1,108 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/boraroad-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: set_tag
+        run: echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          SHA=${{ github.sha }}
+          docker build -t $IMAGE:latest -t $IMAGE:$SHA .
+          docker push $IMAGE:latest
+          docker push $IMAGE:$SHA
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            # 현재 태그를 이전 태그로 보관 (롤백용)
+            mkdir -p ~/boraroad
+            if [ -f ~/boraroad/current-tag.txt ]; then
+              cp ~/boraroad/current-tag.txt ~/boraroad/previous-tag.txt
+            fi
+            echo "${{ needs.build-and-push.outputs.image_tag }}" > ~/boraroad/current-tag.txt
+
+            # GHCR 로그인 (EC2에서 이미지 pull)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+
+            # 새 이미지 pull 후 재시작
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }} \
+              docker compose -f ~/compose.prod.yaml pull app
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }} \
+              docker compose -f ~/compose.prod.yaml up -d app
+
+      - name: Health check
+        id: health_check
+        continue-on-error: true
+        run: |
+          echo "애플리케이션 시작 대기 중..."
+          sleep 20
+
+          for i in {1..5}; do
+            if curl -sf http://${{ secrets.DEPLOY_HOST }}:8080/actuator/health; then
+              echo "헬스체크 통과 (시도 $i)"
+              exit 0
+            fi
+            echo "시도 $i/5 실패, 10초 후 재시도..."
+            sleep 10
+          done
+
+          echo "헬스체크 5회 모두 실패"
+          exit 1
+
+      - name: Rollback on failure
+        if: steps.health_check.outcome == 'failure'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            if [ -f ~/boraroad/previous-tag.txt ]; then
+              PREV_TAG=$(cat ~/boraroad/previous-tag.txt)
+              echo "이전 버전으로 롤백: $PREV_TAG"
+              IMAGE_TAG=$PREV_TAG docker compose -f ~/compose.prod.yaml up -d app
+              cp ~/boraroad/previous-tag.txt ~/boraroad/current-tag.txt
+              echo "롤백 완료"
+            else
+              echo "이전 태그 없음 - 롤백 불가"
+            fi
+
+      - name: Fail pipeline after rollback
+        if: steps.health_check.outcome == 'failure'
+        run: |
+          echo "배포 실패로 롤백이 실행되었습니다."
+          exit 1
