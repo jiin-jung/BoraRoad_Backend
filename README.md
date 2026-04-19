@@ -402,8 +402,8 @@ curl -X GET http://localhost:8081/api/users/1/statistics \
 | 역할 | 이름 | 담당 영역 | GitHub |
 |------|------|---------|--------|
 | **프로젝트 리더 & Backend** | jiin-jung | 전체 아키텍처, API 개발, 데이터베이스 설계 | [@jiin-jung](https://github.com/jiin-jung) |
-| **Backend Developer** | jiin-jung | Service 계층, Repository 구현 | - | [@jiin-jung](https://github.com/jiin-jung) |
-| **DevOps** | limwr706 | Docker, 배포 파이프라인 구축 | - | [@Dailiz](https://github.com/limwr706) |
+| **Backend Developer** | jiin-jung | Service 계층, Repository 구현 | - [@jiin-jung](https://github.com/jiin-jung) |
+| **DevOps** | limwr706 | Docker, 배포 파이프라인 구축 | - [@Dailiz](https://github.com/limwr706) |
 
 ### 📧 연락처
 
