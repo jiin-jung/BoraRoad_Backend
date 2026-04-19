@@ -1,4 +1,4 @@
-# 🛣️ BoraRoad_Backend
+# 💜BoraRoad💜
 
 **BTS 성지순례 경로 추천 서비스의 백엔드 API 서버**
 
